@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Enhancer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Video Enhancer</h1>
+            <p>Upload a video to enhance it with AI-powered stabilization, denoising, and super-resolution.</p>
+        </div>
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            <label for="videoFile" class="file-upload-label">
+                <span id="fileName">Choose a video file...</span>
+            </label>
+            <input type="file" name="video" id="videoFile" accept="video/*" required>
+            <button type="submit">Enhance Video</button>
+        </form>
+        <div class="status-area">
+            <div id="loader" class="loader" style="display: none;"></div>
+            <div id="message"></div>
+        </div>
+    </div>
+    <script>
+        const form = document.getElementById('uploadForm');
+        const loader = document.getElementById('loader');
+        const message = document.getElementById('message');
+        const videoFileInput = document.getElementById('videoFile');
+        const fileNameSpan = document.getElementById('fileName');
+
+        videoFileInput.addEventListener('change', () => {
+            if (videoFileInput.files.length > 0) {
+                fileNameSpan.textContent = videoFileInput.files[0].name;
+            } else {
+                fileNameSpan.textContent = 'Choose a video file...';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const videoFile = videoFileInput.files[0];
+
+            if (!videoFile) {
+                message.textContent = 'Please select a video file.';
+                message.style.color = '#ff4d4d';
+                return;
+            }
+
+            loader.style.display = 'block';
+            message.textContent = 'Uploading and processing... This may take a while.';
+            message.style.color = '#f0f0f0';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let filename = 'enhanced_video.mp4';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                        if (filenameMatch && filenameMatch.length > 1) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    message.textContent = 'Processing complete! Your download has started.';
+                    message.style.color = '#4caf50';
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'An unknown error occurred.');
+                }
+            } catch (error) {
+                message.textContent = `An error occurred: ${error.message}`;
+                message.style.color = '#ff4d4d';
+            } finally {
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
